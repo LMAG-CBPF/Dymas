@@ -1,3 +1,7 @@
+# Dymas micromagnetic software.
+# Author: Diego González Chávez
+# email : diegogch@cbpf.br
+
 import numpy as np
 import numpy.typing as npt
 
