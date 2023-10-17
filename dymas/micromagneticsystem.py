@@ -4,9 +4,9 @@
 
 import numpy as np
 import numpy.typing as npt
-import LLG
-import demag
-import exchange
+from . import LLG
+from . import demag
+from . import exchange
 
 def _not_implemented_method(*args, **kargs):
     print('Not implemented!')
