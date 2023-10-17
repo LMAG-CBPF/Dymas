@@ -1,0 +1,1 @@
+# Dymas micromagnetic software.
