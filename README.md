@@ -2,7 +2,7 @@
 Open source software for magnetization dynamics in the frequency domain.
 
 [Diego Ernesto González Chávez](https://github.com/vrekrer), 
-[Genaro Pablo Zamudio Chauca]()
+[Genaro Pablo Zamudio Chauca](https://github.com/gpzamudio)
 
 
 *Laboratorio de Magnetismo Aplicado - Centro Brasileiro de Pesquisas Físicas,  
