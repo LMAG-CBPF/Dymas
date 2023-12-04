@@ -78,7 +78,7 @@ class System(object):
 
         # get kernels
         K_demag = demag.Demag_Kernel(*mesh_n, *mesh_cell)
-        A_eff = -2*instance.Energies['BasicExchange']['A']
+        A_eff = instance.Energies['BasicExchange']['A']
         A_eff[mask] = 0
         A_eff[~mask] = A_eff[~mask]/instance.Ms[~mask]
         K_exchange = exchange.Exchange_Kernel(*mesh_n, *mesh_cell, A_eff)

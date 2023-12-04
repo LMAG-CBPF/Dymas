@@ -94,8 +94,8 @@ def Exchange_Kernel(lx: int, ly: int, lz: int,
     for edge, dxi in zip(edges, np.c_[dx2i, dx2i].flatten()):
         K_exh[edge, edge] -= dxi
     return np.einsum('lmn,ijklmn,ab->ijkalmnb',
-                     A_eff,
-                     K_exh,
+                     2*A_eff,
+                     -K_exh,
                      np.eye(3),
                      optimize=True)
 
