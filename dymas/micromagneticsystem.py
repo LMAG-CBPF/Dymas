@@ -8,6 +8,7 @@ from . import LLG
 from . import demag
 from . import exchange
 
+
 def _not_implemented_method(*args, **kargs):
     print('Not implemented!')
 
@@ -75,7 +76,6 @@ class System(object):
         instance.mask = mask
         instance.Energies, instance.Dynamics = parse_ubermag_system(ub_system)
 
-
         # get kernels
         K_demag = demag.Demag_Kernel(*mesh_n, *mesh_cell)
         A_eff = -2*instance.Energies['BasicExchange']['A']
@@ -88,14 +88,43 @@ class System(object):
         instance.K_Total = np.einsum('ijkalmnb,lmn->ijkalmnb',
                                      K_demag + K_exchange,
                                      instance.Ms)
-
-        #use copies in order to free the original array memory.
+        instance.K_Total0 = instance.K_Total
+        # use copies in order to free the original array memory.
         instance.m = instance.m[~mask].copy()
         instance.H = instance.H[~mask].copy()
         instance.K_Total = instance.K_Total[~mask, ...][:, :, ~mask, :].copy()
         instance.alpha = instance.alpha[~mask].copy()
         instance.gamma = instance.gamma[~mask].copy()
         return instance
+
+    @property
+    def H_ef_eq(self):
+        '''
+        H_ef_eq[x,a] Effective field at equilibrium magnetization
+        '''
+        return self.H + np.einsum('xayb,yb->xa',
+                                  self.K_Total0,
+                                  self.m)
+
+    @property
+    def N(self):
+        '''
+        H_ef_eq[x,a] Effective field at equilibrium magnetization
+        '''
+        H_ef_eq = self.H + np.einsum('xayb,yb->xa',
+                                     self.K_Total0,
+                                     self.m)
+        '''
+        N[x,a,y,b] = K - (H_ef_eq . m_eq) I perturbation magnetization to 
+        perturbation field operator dh = N dm
+        '''
+        return self.K_Total - np.einsum('ab,xy,x->xayb',
+                                        np.eye(3),
+                                        np.eye(self.m.shape[0]),
+                                        np.einsum('xa,xa->x',
+                                                  H_ef_eq,
+                                                  self.m),
+                                        optimize='greedy')
 
 
 def parse_ubermag_system(ub_system):
@@ -167,29 +196,30 @@ def parse_ubermag_system(ub_system):
                 energies['uninplemented_Zeeman'] = {}
     return energies, dynamics
 
+
 def Evolve(system: System,
            t: float,
-           max_steps:int=5000,
-           max_angle:float=0.5E-3,
+           max_steps: int = 5000,
+           max_angle: float = 0.5E-3,
            ):
-    
-    #Flat versions of the arrays
+
+    # Flat versions of the arrays
     mSize = system.m.size
     K = system.K_Total.reshape(mSize, mSize)
     H_DC = system.H.ravel()
-    
+
     t_evolved = 0
     for i in range(max_steps):
         H_eff = H_DC + K @ system.m.ravel()
         H_eff.shape = system.m.shape
         dT = np.einsum('xab,xb->xa',
-                      LLG.damping_operator_LL(system.alpha,
-                                              system.gamma,
-                                              system.m)
-                      + LLG.torque_operator_LLG(system.alpha,
-                                                system.gamma,
-                                                system.m),
-                      H_eff)  # [rad?/s]
+                       LLG.damping_operator_LL(system.alpha,
+                                               system.gamma,
+                                               system.m)
+                       + LLG.torque_operator_LLG(system.alpha,
+                                                 system.gamma,
+                                                 system.m),
+                       H_eff)  # [rad?/s]
 
         maxChange = np.abs(dT).max()  # in rads/s
         if maxChange == 0:
@@ -204,15 +234,15 @@ def Evolve(system: System,
 
 
 def Minimize(system: System,
-              max_steps=1000,
-              start_max_angle=0.05,
-              target_max_angle=2E-5):
+             max_steps=1000,
+             start_max_angle=0.05,
+             target_max_angle=2E-5):
 
     max_changes = np.ones(10)
     max_changes[-1] = 0
     max_angle = start_max_angle
 
-    #Flat versions of the arrays
+    # Flat versions of the arrays
     mSize = system.m.size
     K = system.K_Total.reshape(mSize, mSize)
     H_DC = system.H.ravel()
@@ -236,7 +266,7 @@ def Minimize(system: System,
         system.m = system.m + D*max_angle/maxChange
         system.m = system.m/np.linalg.norm(system.m, axis=-1, keepdims=True)
 
-        max_changes = np.take(max_changes, [1,2,3,4,5,6,7,8,9,0])
+        max_changes = np.take(max_changes, [1, 2, 3, 4, 5, 6, 7, 8, 9, 0])
         max_changes[-1] = maxChange
 
         if max_angle <= target_max_angle:

@@ -75,23 +75,7 @@ def Zeeman_Kernel(H: npt.NDArray, m: npt.NDArray) -> npt.NDArray:
 
 
 def D_operator(system):
-    '''
-    H_ef_eq[x,a] Effective field at equilibrium magnetization
-    '''
-    H_ef_eq = system.H + np.einsum('xayb,yb->xa',
-                                   system.K_Total,
-                                   system.m)
-    '''
-    N[x,a,y,b] = K - (H_ef_eq . m_eq) I perturbation magnetization to 
-    perturbation field operator dh = N dm
-    '''
-    N = system.K_Total - np.einsum('ab,xy,x->xayb',
-                                   np.eye(3),
-                                   np.eye(system.m.shape[0]),
-                                   np.einsum('xa,xa->x',
-                                             H_ef_eq,
-                                             system.m),
-                                   optimize='greedy')
+
     '''
     P[x,a,b] projection operator to the plane locally orthogonal to m
     '''
@@ -127,6 +111,8 @@ def D_operator(system):
                      optimize='greedy')
          )*(system.gamma / (1+system.alpha**2))[..., None, None]
 
+    N = system.N
+
     '''
     D[x,l,y,v] Operator of the eigen-system
     i omega dm = D dm
@@ -145,7 +131,7 @@ def D_operator(system):
     system.L = L
     system.P = P
     system.R = R
-    system.N = N
+    #system.N = N
     system.RD0Rz = system.RD0R.reshape(mSize, mSize)
     system.RDRz = system.RDR.reshape(mSize, mSize)
 
