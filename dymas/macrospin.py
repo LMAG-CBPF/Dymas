@@ -28,11 +28,12 @@ class macroSpinSystem(object):
                          self._m_symbols[i*3 + 1]*coordinate_system.j +
                          self._m_symbols[i*3 + 2]*coordinate_system.k)
                         for i, _ in enumerate(m_variables)]
-        self._const_vars = [k for k in constants_dictionary.keys()]
-        self._const_values = [v for v in constants_dictionary.values()]
+        _const_vars = [k for k in constants_dictionary.keys()]
+        _const_values = [v for v in constants_dictionary.values()]
+        self._energy_function = energy_function
         self._E = sympy.Subs(energy_function,
-                             variables=m_variables + self._const_vars,
-                             point=self._m_vars + self._const_values).doit()
+                             variables=m_variables + _const_vars,
+                             point=self._m_vars + _const_values).doit()
         self._E_m = sympy.derive_by_array(self._E, self._m_symbols).doit()
         self._E_mm = sympy.derive_by_array(self._E_m, self._m_symbols).doit()
 
@@ -40,6 +41,7 @@ class macroSpinSystem(object):
         self._H = 0*coordinate_system.k
 
         self._m_values = m_inital_values
+        # Magnetic moment amplitudes
         self._u_amplitudes = sympy.Array(u_amplitudes)
         self.coordinate_system = coordinate_system
 
@@ -56,9 +58,9 @@ class macroSpinSystem(object):
         sp_array = sympy.Subs(expression,
                               variables=self._m_symbols,
                               point=m_symbols_values).doit()
-        sp_array = sympy.Subs(sp_array,
-                              variables=self._const_vars,
-                              point=self._const_values).doit()
+        # sp_array = sympy.Subs(sp_array,
+        #                      variables=self._const_vars,
+        #                      point=self._const_values).doit()
         sp_array = sympy.Subs(sp_array,
                               variables=[self._H_symbol],
                               point=[self.H]).doit()
@@ -128,13 +130,21 @@ class macroSpinSystem(object):
         max_angle = start_max_angle
 
         work_m = self.m.copy()
+        shape = (self.nSpins, 3)
+
+        u_abs = self._to_npArray(self._u_amplitudes)
+        _Em = sympy.Subs(self._E_m,
+                         variables=[self._H_symbol],
+                         point=[self.H]).doit()
+        _Em = sympy.lambdify(self._m_symbols, _Em)
 
         for i in range(max_steps):
+            H_eff = -_Em(*work_m.flatten()).reshape(shape) / u_abs[:, None]
             D = np.einsum('xab,xb->xa',
                           LLG.damping_operator_LL(self.alpha,
                                                   self.gamma,
                                                   work_m),
-                          self.H_eff)  # [rad?/s]
+                          H_eff)  # [rad?/s]
 
             if (max_changes.std() / max_changes.ptp()) > 0.4:
                 max_angle *= 0.90
@@ -145,10 +155,10 @@ class macroSpinSystem(object):
 
             work_m = work_m + D*max_angle/maxChange
             work_m = work_m/np.linalg.norm(work_m, axis=-1, keepdims=True)
-            self.m = work_m.copy()
 
             max_changes = np.take(max_changes, [1, 2, 3, 4, 5, 6, 7, 8, 9, 0])
             max_changes[-1] = maxChange
 
             if max_angle <= target_max_angle:
                 break
+        self.m = work_m.copy()
